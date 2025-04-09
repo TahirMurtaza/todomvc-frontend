@@ -23,6 +23,9 @@
               <q-item clickable v-close-popup>
                 <q-item-section @click="authStore.logout()">Logout</q-item-section>
               </q-item>
+              <q-item clickable v-close-popup>
+                <q-item-section @click="goToProfileSettings">Profile Settings</q-item-section>
+              </q-item>
             </q-list>
           </q-menu>
         </div>
@@ -47,7 +50,9 @@
 import { ref } from 'vue'
 import EssentialLink from 'components/EssentialLink.vue'
 import { useAuthStore } from 'stores/auth'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const linksList = [
@@ -55,12 +60,18 @@ const linksList = [
     title: 'Dashboard',
     icon: 'code',
     link: '/dashboard',
-  },
+  }
+
 ]
 
 const leftDrawerOpen = ref(false)
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
+}
+
+
+const goToProfileSettings = () => {
+  router.push({ path: '/profile-settings' }) 
 }
 </script>
