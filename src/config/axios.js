@@ -1,23 +1,26 @@
-import axios from 'axios';
-import { useAuthStore } from 'stores/auth'
+import axios from 'axios'
+import localStorageService from '@/services/localStorage.service'
 
-const API_URL = process.env.VUE_APP_API_URL;
+const API_URL = process.env.VUE_APP_API_URL
 
 const apiClient = axios.create({
   baseURL: API_URL, // Set the base URL
   headers: {
     'Content-Type': 'application/json', // Default headers
   },
-});
+})
 
-// Add a request interceptor to include the auth token
-apiClient.interceptors.request.use((config) => {
-  const authStore = useAuthStore();
-  if (authStore.isAuthenticated) {
-    config.headers.Authorization = `Bearer ${authStore.user.token}`;
-  }
-  return config;
-});
-  
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorageService.getItem('accessToken')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  },
+)
 
-export default apiClient;
+export default apiClient
