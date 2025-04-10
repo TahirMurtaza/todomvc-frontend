@@ -1,68 +1,92 @@
+<!-- TodoComponent.vue -->
 <script setup>
-import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
 
-import TodoFooter from './TodoFooter.vue';
-import TodoHeader from './TodoHeader.vue';
-import TodoItem from './TodoItem.vue';
+import TodoFooter from './TodoFooter.vue'
+import TodoHeader from './TodoHeader.vue'
+import TodoItem from './TodoItem.vue'
 
-const todos = ref([]);
-const route = useRoute();
+import TodoService from '@/services/todo.service'
 
-const filters = {
-  all: todos => todos,
-  active: todos => todos.value.filter(todo => !todo.completed),
-  completed: todos => todos.value.filter(todo => todo.completed)
-}
+const route = useRoute()
+const todos = ref([])
 
-const activeTodos = computed(() => filters.active(todos))
-const completedTodos = computed(() => filters.completed(todos))
+const activeTodos = computed(() => todos.value.filter((todo) => !todo.is_completed))
+const completedTodos = computed(() => todos.value.filter((todo) => todo.is_completed))
 const filteredTodos = computed(() => {
   switch (route.name) {
-    case 'active': return activeTodos
-    case 'completed': return completedTodos
-    default: return todos
+    case 'active':
+      return activeTodos
+    case 'completed':
+      return completedTodos
+    default:
+      return todos
   }
 })
 
 const toggleAllModel = computed({
   get: () => activeTodos.value.length === 0,
-  set: value => todos.value.forEach(todo => todo.completed = value)
+  set: value => {
+    filteredTodos.value.forEach(todo => {
+      toggleTodo(todo, value)
+    })
+  }
 })
 
-function uuid() {
-  let uuid = ""
-  for (let i = 0; i < 32; i++) {
-    let random = (Math.random() * 16) | 0
-    if (i === 8 || i === 12 || i === 16 || i === 20) uuid += "-"
-    uuid += (i === 12 ? 4 : i === 16 ? (random & 3) | 8 : random).toString(16)
+async function loadTodos() {
+  try {
+    let response
+
+    if (route.name === 'active') {
+      response = await TodoService.getActiveTodos()
+    } else if (route.name === 'completed') {
+      response = await TodoService.getCompletedTodos()
+    } else {
+      response = await TodoService.getTodos()
+    }
+
+    todos.value = response.todos 
+
+  } catch (error) {
+    console.error('Failed to load todos:', error)
   }
-  return uuid
 }
 
-function addTodo(value) {
-  todos.value.push({ completed: false, title: value, id: uuid() })
+async function addTodo(title) {
+  const newTodo = await TodoService.createTodo({ title })
+  todos.value.push(newTodo.todo)
 }
 
-function deleteTodo(todo) {
-  todos.value = todos.value.filter(t => t !== todo)
+async function deleteTodo(todo) {
+  todos.value = todos.value.filter((t) => t.entity_id !== todo.entity_id)
+  await TodoService.deleteTodo(todo.entity_id)
 }
 
-function toggleTodo(todo, value) {
-  todo.completed = value
+async function toggleTodo(todo, value) {
+  if (todo.is_completed !== value) {
+    const updated = await TodoService.updateTodo(todo.entity_id, { is_completed: value, title: todo.title })
+    todo.is_completed = updated.todo.is_completed
+  }
 }
 
-function editTodo(todo, value) {
-  todo.title = value
+async function editTodo(todo, value) {
+  const updated = await TodoService.updateTodo(todo.entity_id, { title: value })
+  todo.title = updated.todo.title
 }
 
-function deleteCompleted() {
-  todos.value = todos.value.filter(todo => !todo.completed)
+async function deleteCompleted() {
+  await TodoService.clearCompleted()
+  todos.value = todos.value.filter((todo) => !todo.is_completed)
 }
+
+watchEffect(() => {
+  loadTodos()
+})
 </script>
 
 <template>
-  <q-page class="col-11 col-sm-8 col-md-6 col-lg-4 col-xl-3 q-pa-xs q-pa-md-sm q-mb-xl">
+  <q-page class="q-pa-md">
     <q-card class="q-mx-auto" style="max-width: 600px">
       <TodoHeader @add-todo="addTodo" />
 
@@ -74,7 +98,7 @@ function deleteCompleted() {
         <q-list bordered class="rounded-borders">
           <TodoItem
             v-for="(todo, index) in filteredTodos.value"
-            :key="todo.id"
+            :key="todo.entity_id"
             :todo="todo"
             :index="index"
             @delete-todo="deleteTodo"

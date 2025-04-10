@@ -1,4 +1,4 @@
-import axios from 'config/axios'
+import axios from '@/config/axios'
 import NotifyService from './notify.service'
 
 export class BaseService {
